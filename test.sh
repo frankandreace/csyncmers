@@ -12,30 +12,25 @@ generate_sequence() {
     echo "$seq"
 }
 
-for i in {1..10}
+# echo "Disabling HYPERTREADING for more accurate time estimation"
+# sudo sh -c 'echo off > /sys/devices/system/cpu/smt/control'
+
+for i in {1..1} #10
 do
-    # Generate a random sequence of length 50
-    seq=$(generate_sequence)
 
-    # Generate random 'a' such that 10 < a < 1000
-    a=$(( RANDOM % 989 + 11 ))  # Random integer between 11 and 999 inclusive
+    sequence1="TACGACAGCGAATTCCTGAGAATAATTCGAAAATTCGGACCTCGTTCGTCAATAGCTGTCATAAGGTGGGGTTACATCCCGCTCAGTCTATAATAGTGCACTTTTGTGCAGAGATTGCTGAGTGGCGAGAATTACTGTCTGGGAGCTAATGCTCACCGGGTTCAAGTGGACACAACTCGGATCCTAATACGCACATATACCGTAAATTCACGTCAACATCTCGGTATGCGTAGACACAATTGATCAATATCCTGAAAGCCCCGTGATTAAGCTGCGGGGGAATGGCTTATACTCATTAGTGAATAAATACATAGGCGCCAGAGATTATGAACGTTCCTAAGAGTTGGATACCACCATTCAAGGGTTCACGCGCCGGTGTATTCGACTCATCTACGGCCATCAGTGGCGAGTTTACTTACGTGTTAACAGAGTACCGCCCGATTTTCCATGGGGAGTGTATTCAGATGATGCGGGAGACCGGGCAGTAAAATCGCCCCCATCTGAGAATGGCGATCCTTGTGCGTGTCGGTTCGCATTTTTGCTGAGACTAAAAAGACTCCAAAATGTAGATATTATGGTAGCTTGGGTGATGGCCAGTTTACATAGACAGTAAATTAAGTTACTCGAAACCGTACTCATTGTTGTGGAGCCGAC"
+    sequence="GCAAGTGACAATTCCTGAGAATAA"
+  
+    a=5
+    b=2
 
-    # Calculate 'b' constraints: 6 < b < a and b < 100
-    b_min=7
-    b_max=$(( a - 1 ))
-    if (( b_max > 63 )); then
-        b_max=63
-    fi
-
-    # Ensure b_min does not exceed b_max
-    if (( b_max < b_min )); then
-        b=$b_min
-    else
-        b=$(( RANDOM % (b_max - b_min + 1) + b_min ))
-    fi
-
+    # seqfile=$1
     # Execute the test command with the generated parameters
-    echo "./test \"$seq\" $a $b"
-    ./test "$seq" $a $b
+    echo "./bin/csyncmer \"$sequence\" $a $b"
+    ./bin/csyncmer "$sequence" $a $b 0
+    # ./bin/syncmer_tree ./bin/csyncmer "$seqfile" $a $b
 done
 echo "All tests OK."
+
+# echo "Re-enabling HYPERTREADING."
+# sudo sh -c 'echo on > /sys/devices/system/cpu/smt/control'
