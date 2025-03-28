@@ -77,4 +77,13 @@ static void add_minimizer(MinimizerResult *results, int *size, U64 minimizer_has
     (*size)++;
 }
 
+static inline uint8_t base_to_bits(char base) {
+    switch(base) {
+        case 'A': case 'a': return 0;
+        case 'C': case 'c': return 1;
+        case 'G': case 'g': return 2;
+        case 'T': case 't': return 3;
+        default: return 0; // Treat unknown as 'A'
+    }
+}
 /************************/

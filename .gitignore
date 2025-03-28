@@ -1,2 +1,4 @@
 .vscode/
 unused/
+bin/
+src/*.o

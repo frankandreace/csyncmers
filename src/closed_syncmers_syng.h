@@ -45,7 +45,7 @@ static inline U64 advanceHashRC (SeqhashIterator *si, bool *isForward);
 // (closed) syncmer extracts w-mers that end with a minimal kmer
 // these provide a cover, and have good distribution properties
 SeqhashIterator *syncmerIterator (Seqhash *sh, char *s, int len) ;
-bool syncmerNext (SeqhashIterator *si, U64 *kmer, size_t *k_pos, bool *isF) ;
+bool syncmerNext (SeqhashIterator *si, U64 *kmer, size_t *k_pos, size_t *s_pos, bool *isF) ;
 
 // utilities
 static inline U64 kHash (Seqhash *sh, U64 k) { return ((k * sh->factor1) >> sh->shift1) ; }

@@ -137,6 +137,13 @@ static stream stream_open_file(FILE *fin, int reverse)
   return S;
 }
 
+static stream stream_open_fasta(FILE *fin, int reverse)
+{
+  stream S = stream_open_file(fin, reverse);
+  S->type = STREAM_FASTA;
+  return S;
+}
+
 
 static int stream_getnext_file(stream S)
 {

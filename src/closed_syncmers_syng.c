@@ -13,6 +13,29 @@
 
 #include "closed_syncmers_syng.h"
 
+/************** basic hash functions *************/
+
+static inline U64 hashRC (SeqhashIterator *si, bool *isForward)
+{ U64 hashF = kHash (si->sh, si->h) ;
+  U64 hashR = kHash (si->sh, si->hRC) ;
+#ifdef DEBUG
+  printf ("hashRC: h %lx hRC %lx hashF %lx hashR %lx\n", si->h, si->hRC, hashF, hashR) ;
+#endif
+  if (hashF < hashR) { *isForward = true ; return hashF ; }
+  else { *isForward = false ; return hashR ; }
+}
+
+static inline U64 advanceHashRC (SeqhashIterator *si, bool *isForward)
+{ Seqhash *sh = si->sh ;
+  if (si->s < si->sEnd)
+    { si->h = ((si->h << 2) & sh->mask) | base_to_bits(*si->s) ;
+      si->hRC = (si->hRC >> 2) | sh->patternRC[(int)base_to_bits(*si->s)] ;
+      ++si->s ;
+      return hashRC (si, isForward) ;
+    }
+  else
+    return U64MAX ;
+}
 /************ iterator to run across a sequence, returning (a subset of) hashes ***********/
 
 /*************** this basic one returns all the hashes *********************/
@@ -70,7 +93,7 @@ bool seqhashNext (SeqhashIterator *si, U64 *kmer, size_t *pos, bool *isF)
 {
   if (si->isDone) return false ; /* we are done */
 
-  if (kmer) *kmer = si->h ; 
+  if (kmer) *kmer = *si->hash ; 
   if (pos) *pos = si->iStart ;
   if (isF) *isF = *si->isForward ;
 
@@ -79,34 +102,10 @@ bool seqhashNext (SeqhashIterator *si, U64 *kmer, size_t *pos, bool *isF)
   else
     { *si->hash = advanceHashRC (si, si->isForward) ;
       ++si->iStart ;
-      printf("NEW HASH IS %llu\n", si->h) ;
+      printf("NEW HASH IS %llu\n", *si->hash) ;
     }
   
   return true ;
-}
-
-/************** basic hash functions *************/
-
-static inline U64 hashRC (SeqhashIterator *si, bool *isForward)
-{ U64 hashF = kHash (si->sh, si->h) ;
-  U64 hashR = kHash (si->sh, si->hRC) ;
-#ifdef DEBUG
-  printf ("hashRC: h %lx hRC %lx hashF %lx hashR %lx\n", si->h, si->hRC, hashF, hashR) ;
-#endif
-  if (hashF < hashR) { *isForward = true ; return hashF ; }
-  else { *isForward = false ; return hashR ; }
-}
-
-static inline U64 advanceHashRC (SeqhashIterator *si, bool *isForward)
-{ Seqhash *sh = si->sh ;
-  if (si->s < si->sEnd)
-    { si->h = ((si->h << 2) & sh->mask) | *(si->s) ;
-      si->hRC = (si->hRC >> 2) | sh->patternRC[(int)*(si->s)] ;
-      ++si->s ;
-      return hashRC (si, isForward) ;
-    }
-  else
-    return U64MAX ;
 }
 
 /************ same for closed syncmer ***********/
@@ -131,7 +130,7 @@ SeqhashIterator *syncmerIterator (Seqhash *sh, char *s, int len)
   fprintf(stderr,"# loops initialization syncmeriterator: %d\n", count);
   count = 0;
   // si->iStart = 0 ; // from initialisation
-  if (si->hash[0] == si->min || si->hash[sh->w-1] == si->min)  printf("NO WHILE\n") ; return si ; // we are done
+  if (si->hash[0] == si->min || si->hash[sh->w-1] == si->min)  {printf("NO WHILE\n") ; return si ; }// we are done
   while (true)
     { U64 x = advanceHashRC (si, &si->isForward[si->iStart]) ;
       count++;
@@ -178,7 +177,7 @@ SeqhashIterator *syncmerIterator (Seqhash *sh, char *s, int len)
 //       if (x <= si->min) // min at the end of the w-mer
 // 	{ si->min = x ;
 // 	  	  printf (" syncmerNext   at_end %" PRId64 " %" PRIx64 " %" PRIu64 "\n", si->iStart, x, si->sEnd-si->s) ;
-//       if (s_pos) *s_pos = *k_pos + si->sh->w; // the minimal s-mer is at the end of the k-mer
+//       if (s_pos) *s_pos = *k_pos ; // the minimal s-mer is at the beginning of the k-mer
 // 	  return true ;
 // 	}
 //       if (si->hash[si->iStart] == si->min) // min at the beginning of the w-mer
@@ -190,7 +189,7 @@ SeqhashIterator *syncmerIterator (Seqhash *sh, char *s, int len)
 //     }
 // }
 
-bool syncmerNext (SeqhashIterator *si, U64 *kmer, size_t *pos, bool *isF)
+bool syncmerNext (SeqhashIterator *si, U64 *kmer, size_t *k_pos, size_t *s_pos, bool *isF)
 {
   if (si->isDone) return false ; /* we are done */
 
@@ -201,7 +200,7 @@ bool syncmerNext (SeqhashIterator *si, U64 *kmer, size_t *pos, bool *isF)
 #endif
 
   if (kmer) *kmer = si->hash[si->iStart] ;
-  if (pos) *pos = si->base + si->iStart ;
+  if (k_pos) *k_pos = si->base + si->iStart ;
   if (isF) *isF = si->isForward[si->iStart] ;
 
   if (si->hash[si->iStart] == si->min) // need to find new min - could use a heap, but not so bad to search here
@@ -218,11 +217,13 @@ bool syncmerNext (SeqhashIterator *si, U64 *kmer, size_t *pos, bool *isF)
       if (x <= si->min) // min at the end of the w-mer
 	{ si->min = x ;
 	  //	  printf (" syncmerNext   at_end %" PRId64 " %" PRIx64 " %" PRIu64 "\n", si->iStart, x, si->sEnd-si->s) ;
-	  return true ;
+	  if (s_pos) *s_pos = *k_pos ; // the minimal s-mer is at the beginning of the k-mer
+    return true ;
 	}
       if (si->hash[si->iStart] == si->min) // min at the beginning of the w-mer
 	{
 	  // printf (" syncmerNext at_start %" PRId64 " %" PRIx64 " %" PRIu64 "\n", si->iStart, x, si->sEnd-si->s) ;
+    if (s_pos) *s_pos = *k_pos ; // the minimal s-mer is at the beginning of the k-mer
 	  return true ;
 	}
     }
@@ -257,16 +258,17 @@ void compute_closed_syncmers_syng(char *sequence_input, int len, int K, int S, M
     SeqhashIterator *si = syncmerIterator(sh, sequence_input, len);
 
     fprintf(stderr,"Syncmer Iterator has been created\n");
-    U64 kmer;
-    size_t k_pos;
-    bool isF;
-    size_t count = 0;
+    U64 kmer ;
+    size_t k_pos ;
+    size_t s_pos ;
+    bool isF ;
+    size_t count = 0 ;
 
-    while (syncmerNext(si, &kmer, &k_pos, &isF))
+    while (syncmerNext(si, &kmer, &k_pos, &s_pos, &isF))
     {
         count++;
         printf("KMER: %llu, K_POS: %lu\n", kmer, k_pos) ;
-        add_minimizer(results, num_results, kmer, k_pos, 0);
+        add_minimizer(results, num_results, kmer, k_pos, s_pos);
     }
     seqhashIteratorDestroy(si);
     seqhashDestroy(sh);
