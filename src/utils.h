@@ -41,49 +41,17 @@ void *myalloc  (size_t size) ;
 void *mycalloc (size_t number, size_t size) ;
 void *myresize (void* x, size_t nOld, size_t nNew, size_t size) ;
 void  myfree   (void* x, size_t size) ;
+
 #define	new(n,type)                 (type*)myalloc((n)*sizeof(type))
 #define	new0(n,type)	            (type*)mycalloc((n),sizeof(type))
 #define newResize(x,nOld,nNew,type) (type*) myresize((x),(nOld),(nNew),sizeof(type))
 #define newDouble(x,n,type)         myresize((x),(n),2*(n),sizeof(type)), (n) = 2*(n)
 #define	newFree(x,n,type)           myfree((x),(n)*sizeof(type))
 
-void  storeCommandLine (int argc, char *argv[]) ;
-char *getCommandLine (void) ;
-
 char *fgetword (FILE *f) ;	/* not threadsafe */
 FILE *fzopen (const char* path, const char* mode) ; /* will open gzip files silently */
-FILE *fopenTag (char* root, char* tag, char* mode) ;
-char *fnameTag (char* root, char* tag) ; /* utility to return name as used by fopenTag() */
 
 void timeUpdate (FILE *f) ;	/* print time usage since last call to file */
 void timeTotal (FILE *f) ;	/* print full time usage since first call to timeUpdate */
 
-/************************/
-
-// Dynamically resize array for minimizers
-// Struct to hold minimizer and its position
-typedef struct {
-    U64 minimizer_hash;
-    size_t kmer_position;
-    size_t smer_position;
-    // bool isForward;
-} MinimizerResult;
-
-static void add_minimizer(MinimizerResult *results, int *size, U64 minimizer_hash, size_t kmer_position, size_t smer_position) {
-    printf("ADDING: %llu from kmer position %lu and smer position %lu.\n", minimizer_hash, kmer_position, smer_position) ;
-    results[*size].minimizer_hash = minimizer_hash;
-    results[*size].kmer_position = kmer_position;
-    results[*size].smer_position = smer_position;
-    (*size)++;
-}
-
-static inline uint8_t base_to_bits(char base) {
-    switch(base) {
-        case 'A': case 'a': return 0;
-        case 'C': case 'c': return 1;
-        case 'G': case 'g': return 2;
-        case 'T': case 't': return 3;
-        default: return 0; // Treat unknown as 'A'
-    }
-}
 /************************/

@@ -155,23 +155,6 @@ FILE *fzopen(const char *path, const char *mode)
 #endif
 }
 
-char* fnameTag (char* root, char* tag)
-{
-  char *fileName = new (strlen (root) + strlen (tag) + 2, char) ;
-  strcpy (fileName, root) ;
-  strcat (fileName, ".") ;
-  strcat (fileName, tag) ;
-  return fileName ;
-}
-
-FILE *fopenTag (char* root, char* tag, char* mode)
-{
-  char *fileName = fnameTag (root, tag) ;
-  FILE *f = fzopen (fileName, mode) ;
-  free (fileName) ;
-  return f ;
-}
-
 /***************** rusage for timing information ******************/
 
 #include <sys/resource.h>
