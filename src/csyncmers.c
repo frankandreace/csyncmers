@@ -13,7 +13,8 @@
 
 #include "csyncmers.h"
 
-void compute_closed_syncmers_syng(char *sequence_input, int len, int K, int S, MinimizerResult *results, int *num_results) {
+void compute_closed_syncmers_syng(char *sequence_input, int len, int K, int S) {
+    //, MinimizerResult *results, int *num_results
   /* Durbin's SYNG implementation of closed syncmers enrumeration from a sequence*/
     if(len < K) {
         fprintf(stderr, "Sequence length is less than K\n");
@@ -21,7 +22,7 @@ void compute_closed_syncmers_syng(char *sequence_input, int len, int K, int S, M
     }
     // setting the seed to 7 as in Durbin's
     U64 seed  = 7;
-    *num_results = 0;
+    // *num_results = 0;
 
     // Durbin's function works with the parameters as follows:
     // its K is normal S
@@ -31,25 +32,29 @@ void compute_closed_syncmers_syng(char *sequence_input, int len, int K, int S, M
     Seqhash *sh = seqhashCreate(S, window_size, seed);
 
     // initializing the syncmer iterator
-    SeqhashIterator *si = syncmerIterator(sh, sequence_input, len);
-
-    U64 kmer ;
-    size_t k_pos ;
-    size_t s_pos ;
-    bool isF ;
+    SeqhashIterator *si = syncmerIterator(sh, sequence_input, len); 
     size_t count = 0 ;
 
-    while (syncmerNext(si, &kmer, &k_pos, &s_pos, &isF))
-    {
-        count++;
-        add_minimizer(results, num_results, kmer, k_pos, s_pos);
-        // *kmer = si->hash[si->iStart] ;
-        // if (k_pos) *k_pos = si->base + si->iStart ;
-        // if (isF) *isF = si->isForward[si->iS
-        // printf("KMER: %llu, K_POS: %lu\n", kmer, k_pos) ;
-        // #endif
-    }
+    if (si->iMin != U64MAX) {
+        U64 kmer ;
+        size_t k_pos = U64MAX;
+        size_t last_k_pos;
+        size_t s_pos ;
+        bool isF ;
 
+        while (syncmerNext(si, &kmer, &k_pos, &s_pos, &isF))
+        {
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            last_k_pos = k_pos ;
+            count++;
+        }
+        // printf("I SEE k_pos == %lu, last_k_pos == %lu\n", k_pos, last_k_pos) ;
+        if(k_pos != U64MAX && last_k_pos != k_pos) {
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            count++;
+        }
+    }
+    printf("COUNT IS %lu\n", count) ;
     // releasing memory
     seqhashIteratorDestroy(si);
     seqhashDestroy(sh);
@@ -59,6 +64,107 @@ void compute_closed_syncmers_syng(char *sequence_input, int len, int K, int S, M
         printf("%llu\t%lu\t%lu\n", results[i].minimizer_hash, results[i].kmer_position, results[i].smer_position);
     }
     #endif
+}
+
+
+void compute_closed_syncmers_syng_original(char *sequence_input, int len, int K, int S) {
+    //, MinimizerResult *results, int *num_results
+  /* Durbin's SYNG implementation of closed syncmers enrumeration from a sequence*/
+    if(len < K) {
+        fprintf(stderr, "Sequence length is less than K\n");
+        return;
+    }
+    // setting the seed to 7 as in Durbin's
+    U64 seed  = 7;
+    // *num_results = 0;
+
+    // Durbin's function works with the parameters as follows:
+    // its K is normal S
+    // its W is the window size, i.e. K-S+1
+    size_t window_size = (U64)K - (U64)S + 1;
+
+    Seqhash *sh = seqhashCreate(S, window_size, seed);
+
+    // initializing the syncmer iterator
+    SeqhashIterator *si = syncmerIterator_original(sh, sequence_input, len); 
+    size_t count = 0 ;
+
+    if (si->iMin != U64MAX) {
+        U64 kmer ;
+        size_t s_pos = U64MAX;
+        size_t last_k_pos;
+        bool isF ;
+
+        while (syncmerNext_original(si, &kmer, &s_pos, &isF))
+        {
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            last_k_pos = s_pos ;
+            count++;
+        }
+        // printf("I SEE k_pos == %lu, last_k_pos == %lu\n", k_pos, last_k_pos) ;
+        if(s_pos != U64MAX && last_k_pos != s_pos) {
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            count++;
+        }
+    }
+    printf("COUNT IS %lu\n", count) ;
+    // releasing memory
+    seqhashIteratorDestroy(si);
+    seqhashDestroy(sh);
+
+    #ifdef DEBUG
+    for(int i = 0; i < count; i++){
+        printf("%llu\t%lu\t%lu\n", results[i].minimizer_hash, results[i].kmer_position, results[i].smer_position);
+    }
+    #endif
+}
+
+// , MinimizerResult *results, int *num_results
+void compute_closed_syncmers_deque_iterator(char *sequence_input, int len, int K, int S){
+    if(len < K) {
+        fprintf(stderr, "Sequence length is less than K\n");
+        return;
+    }
+    // setting the seed to 7 as in Durbin's
+    U64 seed  = 7;
+    // *num_results = 0;
+    size_t window_size = K - S + 1;
+
+    Seqhash *sh = seqhashCreate(S, window_size, seed);
+    // printf("SYNCMER DEQUE INITIALIZATION\n") ;
+    SeqhashIterator *si = syncmerDequeIterator(sh, sequence_input, len);
+    // printf("END SYNCMER DEQUE INITIALIZATION\n") ;
+    U64 smer ;
+    size_t count = 0 ;
+    size_t s_pos ;
+    bool isF ;
+    // printf("CHECKIN IMIN\n") ;
+    // printf("IMIN IS %lu", si->iMin);
+    if (si->iMin != U64MAX) {
+        U64 kmer ;
+        size_t k_pos = U64MAX;
+        size_t last_k_pos;
+        size_t s_pos ;
+        bool isF ;
+        // printf("STARTING WHILE\n") ;
+        while (syncmerDequeNext(si, &kmer, &k_pos, &s_pos, &isF))
+        {
+            // printf("ADDING\n") ;
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            last_k_pos = k_pos ;
+            count++;
+        }
+        // printf("I SEE k_pos == %lu, last_k_pos == %lu\n", k_pos, last_k_pos) ;
+        if(k_pos != U64MAX && last_k_pos != k_pos) {
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            count++;
+        }
+    }
+    // printf("COUNT IS %lu\n", count) ;
+    // releasing memory
+    seqhashIteratorDestroy(si);
+    seqhashDestroy(sh);
+
 }
 
 void compute_closed_syncmers_deque(char *sequence_input, int len, int K, int S, MinimizerResult *results, int *num_results) {
@@ -135,6 +241,58 @@ void compute_closed_syncmers_deque(char *sequence_input, int len, int K, int S, 
     free(deque);
 }
 
+void compute_closed_syncmer_naive_iterator(char *sequence_input, int len, int K, int S) {
+
+    if(len < K) {
+        fprintf(stderr, "Sequence length is less than K\n");
+        return;
+    }
+
+    // setting the seed to 7 as in Durbin's
+    U64 seed  = 7 ;
+    // *num_results = 0 ;
+    size_t length = (size_t)len ;
+
+    // size_t num_s_mers = length - (size_t)S + 1;
+    // size_t num_k_mers = length - (size_t)K + 1;
+    size_t window_size = (size_t)K - (size_t)S + 1 ;
+    
+    Seqhash *sh = seqhashCreate(S, window_size, seed) ;
+
+    SeqhashIterator *si = syncmerNaiveIterator(sh, sequence_input, len) ;
+    
+    U64 smer ;
+    size_t count = 0 ;
+    size_t s_pos ;
+    bool isF ;
+    // printf("CHECKIN IMIN\n") ;
+    // printf("IMIN IS %lu", si->iMin);
+    if (si->iMin != U64MAX) {
+        U64 kmer ;
+        size_t k_pos = U64MAX;
+        size_t last_k_pos;
+        size_t s_pos ;
+        bool isF ;
+        // printf("STARTING WHILE\n") ;
+        while (syncmerNaiveNext(si, &kmer, &k_pos, &s_pos, &isF))
+        {
+            // printf("ADDING\n") ;
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            last_k_pos = k_pos ;
+            count++;
+        }
+        // printf("I SEE k_pos == %lu, last_k_pos == %lu\n", k_pos, last_k_pos) ;
+        if(k_pos != U64MAX && last_k_pos != k_pos) {
+            // add_minimizer(results, num_results, kmer, k_pos, s_pos);
+            count++;
+        }
+    }
+    printf("COUNT IS %lu\n", count) ;
+    // releasing memory
+    seqhashIteratorDestroy(si);
+    seqhashDestroy(sh);
+
+}
 
 void compute_closed_syncmers_naive(char *sequence_input, int len, int K, int S, MinimizerResult *results, int *num_results) {
     if(len < K) {
@@ -161,6 +319,7 @@ void compute_closed_syncmers_naive(char *sequence_input, int len, int K, int S, 
 
     // HASH ALL S-MERS
     while(seqhashNext(si, &smer, &s_pos, &isF)){
+        printf("HASH COMPUTED IS %llu\n", smer) ;
         s_mer_hashes[s_pos] = smer;
     }
 
@@ -176,7 +335,7 @@ void compute_closed_syncmers_naive(char *sequence_input, int len, int K, int S, 
 
             if (s_mer_hashes[j] < min_smer){
                 min_pos = j;
-                min_smer = s_mer_hashes[j];
+                min_smer = s_mer_hashes[min_pos];
             }
 
         }
